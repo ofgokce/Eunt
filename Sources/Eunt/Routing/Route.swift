@@ -10,9 +10,8 @@ import UIKit
 public struct Route {
     
     let routable: Routable
-    
-    private let presentation: UIModalPresentationStyle
-    private let transition: UIModalTransitionStyle
+    let presentation: UIModalPresentationStyle
+    let transition: UIModalTransitionStyle
     
     public init(_ routable: Routable,
                 presentation: UIModalPresentationStyle = .overFullScreen,

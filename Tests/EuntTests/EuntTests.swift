@@ -6,6 +6,20 @@ final class EuntTests: XCTestCase {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.
-        XCTAssertEqual(Eunt().text, "Hello, World!")
+    }
+}
+
+struct MainTabBarRoute: Routable, RoutableOwner {
+    
+    init() {
+        self.init(with: [])
+    }
+    
+    init(with routables: [Eunt.Routable]) {
+        
+    }
+    
+    func build() -> UIViewController {
+        return UIViewController()
     }
 }

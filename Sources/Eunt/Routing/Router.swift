@@ -22,6 +22,11 @@ class Router {
         childParentsList = registrar.registries.toChildParentsList()
     }
     
+    convenience init(origin: UIViewController, registrar: Registrar) {
+        self.init(registrar: registrar)
+        self.origin = origin
+    }
+    
     public func route(to route: Route) {
         DispatchQueue.main.async { [weak self] in
             guard let origin = self?.origin else { return } //TODO: log
@@ -84,9 +89,11 @@ private extension Router {
                 
                 if let parent = parents.first,
                    let entry = parentChildrenList.first(where: { $0.parent == type(of: parent) }) {
-                    viewController = createRoutable(for: entry, with: routable).build()
+                    viewController = Route(createRoutable(for: entry, with: routable),
+                                           presentation: route.presentation,
+                                           transition: route.transition).build()
                 } else {
-                    viewController = routable.build()
+                    viewController = route.build()
                 }
                 
                 origin.present(viewController, animated: true)
@@ -296,16 +303,6 @@ private extension Router {
             return
         } else {
             throw Error()
-        }
-    }
-    
-    func present(_ routable: Routable, with parent: Routable?, on origin: UIViewController) throws {
-        
-        if let entry = parentChildrenList.first(where: { $0.parent == type(of: parent) }) {
-            
-            let parentRoutable = entry.parent.init(with: [ ]).build()
-        } else {
-            origin.present(routable.build(), animated: true)
         }
     }
     

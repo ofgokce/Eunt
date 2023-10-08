@@ -23,16 +23,3 @@ public extension Registrar {
         .init(type, children: children())
     }
 }
-
-internal extension Registrar {
-    
-    func findParent(of type: Routable.Type) -> RoutableOwner? {
-        
-        if registries.contains(where: { $0.type == type }) { return nil }
-        
-        for registry in registries
-        where registry.isParent(of: type) {
-            
-        }
-    }
-}
