@@ -19,7 +19,11 @@ public extension Registrar {
         .init(type)
     }
     
-    func register(_ type: RoutableOwner.Type, @Builder<Registry> _ children: () -> [Registry]) -> Registry {
+    func register(_ type: Tabber.Type, @Builder<Registry> _ children: () -> [Registry]) -> Registry {
+        .init(type, children: children())
+    }
+    
+    func register(_ type: Navigator.Type, @Builder<Registry> _ children: () -> [Registry]) -> Registry {
         .init(type, children: children())
     }
 }

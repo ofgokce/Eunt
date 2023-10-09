@@ -13,13 +13,10 @@ class Router {
     
     public weak var origin: UIViewController!
     
-    private let parentChildrenList: [(parent: RoutableOwner.Type, children: [Routable.Type])]
-    
-    private let childParentsList: [(child: Routable.Type, parents: [RoutableOwner.Type])]
+    private let registries: [Registry]
     
     init(registrar: Registrar) {
-        parentChildrenList = registrar.registries.toParentChildrenList()
-        childParentsList = registrar.registries.toChildParentsList()
+        registries = registrar.registries.flatten()
     }
     
     convenience init(origin: UIViewController, registrar: Registrar) {
@@ -75,10 +72,9 @@ private extension Router {
             //log
         } catch {
             
-            let parents = childParentsList
-                .first { $0.child == type(of: routable) }?
-                .parents
-                .map { $0.init(with: routable) } ?? []
+            let parents = registries
+                .filter { $0.type == type(of: routable) }
+                .compactMap(\.parent)
             
             do {
                 try push(routable, with: parents, on: origin)
@@ -87,9 +83,8 @@ private extension Router {
                 
                 let viewController: UIViewController
                 
-                if let parent = parents.first,
-                   let entry = parentChildrenList.first(where: { $0.parent == type(of: parent) }) {
-                    viewController = Route(createRoutable(for: entry, with: routable),
+                if let parent = parents.first {
+                    viewController = Route(createRoutable(for: routable, with: parent),
                                            presentation: route.presentation,
                                            transition: route.transition).build()
                 } else {
@@ -234,7 +229,7 @@ private extension Router {
         }
     }
     
-    func push(_ routable: Routable, with parents: [Routable], on origin: UIViewController) throws {
+    func push(_ routable: Routable, with parents: [Registry], on origin: UIViewController) throws {
         if let origin = origin as? UITabBarController {
             try push(routable, with: parents, on: origin)
         } else if let origin = origin as? UINavigationController {
@@ -251,7 +246,7 @@ private extension Router {
         }
     }
     
-    func push(_ routable: Routable, with parents: [Routable], on origin: UITabBarController) throws {
+    func push(_ routable: Routable, with parents: [Registry], on origin: UITabBarController) throws {
         guard let viewControllers = origin.viewControllers else { throw Error() }
         for (index, viewController) in viewControllers.enumerated() {
             do {
@@ -277,8 +272,11 @@ private extension Router {
         }
     }
     
-    func push(_ routable: Routable, with parents: [Routable], on origin: UINavigationController) throws {
-        if parents.contains(where: { $0.identifier.hashValue == origin.routeIdentifier?.hashValue }) {
+    func push(_ routable: Routable, with parents: [Registry], on origin: UINavigationController) throws {
+        if parents.isEmpty
+            || parents.contains(where: {
+                $0.type.init().identifier.hashValue == origin.routeIdentifier?.hashValue
+            }) {
             origin.pushViewController(routable.build(), animated: true)
             return
         }
@@ -306,37 +304,42 @@ private extension Router {
         }
     }
     
-    func createRoutable(for entry: (parent: RoutableOwner.Type, children: [Routable.Type]), with child: Routable) -> Routable {
+    func createRoutable(for targetRoutable: Routable, with parentRegistry: Registry) -> Routable {
         let routable: Routable
         
         // Check children of the parent first and create the parent
-        if entry.children.isEmpty {
-            routable = entry.parent.init(with: child)
-        } else if let index = entry.children.firstIndex(where: { $0 == type(of: child) }) {
-            var children = entry.children.removing(at: index).map(createRoutable(for:))
-            children.insert(child, at: index)
-            routable = entry.parent.init(with: children)
+        if let parentType = parentRegistry.type as? Navigator.Type {
+            if let rootRegistry = parentRegistry.children.first {
+                routable = parentType.init(root: createRoutable(for: rootRegistry), shouldRouteTo: targetRoutable)
+            } else {
+                routable = parentType.init(root: targetRoutable)
+            }
+        } else if let parentType = parentRegistry.type as? Tabber.Type,
+                  let index = parentRegistry.children.firstIndex(where: { $0.type == type(of: targetRoutable) }) {
+            var children = parentRegistry.children.removing(at: index).map(createRoutable(for:))
+            children.insert(targetRoutable, at: index)
+            routable = parentType.init(root: children)
         } else {
-            var children = entry.children.map(createRoutable(for:))
-            children.append(child)
-            routable = entry.parent.init(with: children)
+            routable = targetRoutable
         }
         
         // Check parent of the parent
-        if let parent = childParentsList.first(where: { $0.child == type(of: routable) })?.parents.first,
-           let entry = parentChildrenList.first(where: { $0.parent == parent}) {
-            return createRoutable(for: entry, with: routable)
+        if let grandparentRegistry = parentRegistry.parent {
+            return createRoutable(for: routable, with: grandparentRegistry)
         } else {
             return routable
         }
     }
     
-    func createRoutable(for routableType: Routable.Type) -> Routable {
+    func createRoutable(for registry: Registry) -> Routable {
         // Check if type is a parent
-        if let entry = parentChildrenList.first(where: { $0.parent == routableType }) {
-            return entry.parent.init(with: entry.children.map(createRoutable(for:)))
+        if let routableType = registry.type as? Tabber.Type {
+            return routableType.init(root: registry.children.map(createRoutable(for:)))
+        } else if let routableType = registry.type as? Navigator.Type,
+                  let root = registry.children.first {
+            return routableType.init(root: createRoutable(for: root))
         } else {
-            return routableType.init()
+            return registry.type.init()
         }
     }
 }

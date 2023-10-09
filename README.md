@@ -110,7 +110,7 @@ For registering your app's scenes' parent-children relationship you will be usin
 
 In registering keep in mind that not all routes need to be registered, only strict rules such as a tab bar controller's roots or a navigation bar's root need to be registered. Also if you have a view controller that you want it to be opened strictly in a navigation controller, that needs to be registered also. Otherwise the view controller will be presented.
 
-The parents need to conform "RoutableOwner" protocol.
+The parents need to conform either "Navigator" or "Tabber" protocol, according to their function.
 
 ```swift
 struct MapRegistrar: Registrar {
@@ -120,11 +120,7 @@ struct MapRegistrar: Registrar {
         }
         register(AuthenticationRoute.self) {
             register(LoginRoute.self)
-        }
-        register(AuthenticationRoute.self) {
             register(SignupRoute.self)
-        }
-        register(AuthenticationRoute.self) {
             register(ForgotPassword.self)
         }
         register(MainTabBarRoute.self) {

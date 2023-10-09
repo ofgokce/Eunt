@@ -22,16 +22,6 @@ public class Registry {
     }
 }
 
-extension Registry {
-    func isParent(of type: Routable.Type) -> Bool {
-        if children.contains(where: { $0.type == type }) {
-            return true
-        } else {
-            return children.contains(where: { $0.isParent(of: type) })
-        }
-    }
-}
-
 extension Registry: Hashable {
     
     public static func == (lhs: Registry, rhs: Registry) -> Bool {
@@ -46,33 +36,12 @@ extension Registry: Hashable {
 
 extension Array where Element == Registry {
     
-    func toParentChildrenList() -> [(parent: RoutableOwner.Type, children: [Routable.Type])] {
-        var list: [(parent: RoutableOwner.Type, children: [Routable.Type])] = []
+    func flatten() -> [Registry] {
+        var flatArray: [Registry] = []
         for registry in self {
-            guard !registry.children.isEmpty,
-                  let parent = registry.type as? RoutableOwner.Type else { continue }
-            list.append((parent, registry.children.map(\.type)))
-            list.append(contentsOf: registry.children.toParentChildrenList())
+            flatArray.append(registry)
+            flatArray.append(contentsOf: registry.children.flatten())
         }
-        return list
-    }
-    
-    func toChildParentsList() -> [(child: Routable.Type, parents: [RoutableOwner.Type])] {
-        let parentChildrenList = self.toParentChildrenList()
-        var list: [(child: Routable.Type, parents: [RoutableOwner.Type])] = []
-        for entry in parentChildrenList {
-            for child in entry.children {
-                if let index = list.firstIndex(where: { $0.child == child }) {
-                    if !list[index].parents.contains(where: { $0 == entry.parent }) {
-                        var element = list.remove(at: index)
-                        element.parents.append(entry.parent)
-                        list.append(element)
-                    }
-                } else {
-                    list.append((child, [entry.parent]))
-                }
-            }
-        }
-        return list
+        return flatArray
     }
 }
